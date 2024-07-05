@@ -3,9 +3,9 @@
 
 name: Nightly Ubuntu 22.04
 on:
-  schedule:
-    # Nightly at midnight PDT -- uses UTC, so 7am.
-    - cron:  '0 7 * * *'
+  # schedule:
+  #   # Nightly at midnight PDT -- uses UTC, so 7am.
+  #   - cron:  '0 7 * * *'
   # This lets us trigger manually from the UI.
   workflow_dispatch:
 permissions:
@@ -13,13 +13,38 @@ permissions:
 
 jobs:
   build:
-    name: Nightly Ubuntu 22.04
-    runs-on:
-      labels: ubuntu-22.04-64core
+    name: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - ubuntu-22.04
+          - ubicloud-standard-2
+          - ubicloud-standard-4
+          - ubicloud-standard-8
+          - ubicloud-standard-16
+          - ubicloud-standard-30
+          - ubicloud-standard-60
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0 # so that git-describe can find previous tags
+
+      - name: Show cpu info
+        run: lscpu
+
+      - if: matrix.runner == 'ubuntu-22.04' || matrix.runner == 'ubicloud-standard-2' || matrix.runner == 'ubicloud-standard-2-arm'
+        name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: false
 
       - name: Install dependencies via apt
         run: sudo apt-get install python3-distutils python3-dev python-is-python3 libtinfo5  build-essential liblapack-dev libblas-dev gfortran
@@ -35,7 +60,7 @@ jobs:
 
       - name: Dist
         run: |
-          VERSION=$(git describe --match=v*)
+          VERSION=benchmark-$(date +%Y%m%d)
           TAG_EXISTS="$(git tag -l $VERSION)"
           bazel build -c opt --stamp --embed_label=${VERSION} --//dist:version=${VERSION} --//dist:os=${RUNNER_OS@L} --//dist:arch=${RUNNER_ARCH@L} -- //dist:xls_dist_tar
           echo "VERSION=${VERSION}" >> ${GITHUB_ENV}
@@ -70,7 +95,7 @@ jobs:
 
       - name: Release
         uses: softprops/action-gh-release@v1
-        if: env.TAG_EXISTS == ''
+        if: false
         with:
           tag_name: ${{ env.VERSION }}
           target_commitish: ${{ github.sha }}  # needed for the release to create the tag.
@@ -93,6 +118,7 @@ jobs:
 
       # used by `continuous-integration` and `one-bazel-test-` workflows.
       - name: Save Bazel Cache
+        if: false
         uses: actions/cache/save@v4
         with:
           path: "~/.cache/bazel"

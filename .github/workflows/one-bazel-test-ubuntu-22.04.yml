@@ -16,19 +16,35 @@ on:
         required: true
 
 env:
-  BAZEL_TARGET: ${{ github.event.inputs.target }}
-  BAZEL_RUNS_PER_TEST: ${{ github.event.inputs.runs_per_test }}
+  BAZEL_TARGET: '//xls/dslx:interpreter_test'
+  BAZEL_RUNS_PER_TEST: '1'
 
 jobs:
   build:
-    name: Bazel Test (opt)
-    runs-on:
-      labels: ubuntu-22.04-64core
+    name: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - ubuntu-22.04
+          - ubicloud-standard-2
+          - ubicloud-standard-4
+          - ubicloud-standard-8
+          - ubicloud-standard-16
+          - ubicloud-standard-30
+          - ubicloud-standard-2-arm
+          - ubicloud-standard-4-arm
+          - ubicloud-standard-8-arm
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 600
     steps:
       - uses: actions/checkout@v2
 
+      - name: Show cpu info
+        run: lscpu
+
       - name: Restore Nightly Bazel Cache
+        if: false
         uses: actions/cache/restore@v4
         with:
           path: "~/.cache/bazel"
