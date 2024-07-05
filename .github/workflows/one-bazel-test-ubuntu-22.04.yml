@@ -14,21 +14,39 @@ on:
         description: 'Number of Runs'
         default: '1'
         required: true
+  push:
+    branches:
+      - main
+  schedule:
+    - cron:  '0 3 * * 1'
 
 env:
-  BAZEL_TARGET: ${{ github.event.inputs.target }}
-  BAZEL_RUNS_PER_TEST: ${{ github.event.inputs.runs_per_test }}
+  BAZEL_TARGET: '//xls/dslx:interpreter_test'
+  BAZEL_RUNS_PER_TEST: '1'
 
 jobs:
   build:
-    name: Bazel Test (opt)
-    runs-on:
-      labels: ubuntu-22.04-64core
+    name: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        runner: [
+          ubuntu-latest,
+          ubicloud-standard-2,
+          ubicloud-standard-4,
+          ubicloud-standard-8,
+          ubicloud-standard-16,
+          ubicloud-standard-30
+        ]
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 600
     steps:
       - uses: actions/checkout@v2
 
+      - name: Show cpu info
+        run: lscpu
+
       - name: Restore Nightly Bazel Cache
+        if: false
         uses: actions/cache/restore@v4
         with:
           path: "~/.cache/bazel"
